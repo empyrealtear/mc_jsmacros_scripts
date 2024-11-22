@@ -1,0 +1,2 @@
+# mc_jsmacros_scripts
+为minecraft游戏jsmacros mod编写的脚本
