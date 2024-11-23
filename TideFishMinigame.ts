@@ -1,13 +1,14 @@
 // 脚本名称: 潮汐自动钓鱼
 // 功能介绍: 检测钓鱼小游戏进度，在接近完美时收杆（暂不能百分百完美）
 // 依赖模组: 宏(jsmacros)、潮汐(Tide)
-// 修改时间: 2024-11-22 14:50
-// 当前版本: v1.0
+// 创建时间: 2024-11-21
+// 修改时间: 2024-11-23
+// 当前版本: v1.1
+// 更新内容: v1.1 检测主手是否是钓竿
 // 更新内容: v1.0 初始化脚本
 // 注意事项：板条箱类似重力方块被钓上来，挂机时在脚下和周边铺上按钮，防止板条箱过多影响持续钓鱼
 
 const scriptName = 'TideFishMinigame.ToggleScript'
-
 const isToggle = () => GlobalVars.getBoolean(scriptName)
 const mclog = (preix, msg, preixColor = 0x5, msgColor = 0x7) => {
     Chat.log(Chat.createTextBuilder()
@@ -71,6 +72,7 @@ const getDecalaredFieldValue = (obj, javaClass, name) => {
 const getFishInfos = () => {
     let res = {
         // time: new Date(),
+        mainHand: Player.getPlayer().getMainHand().getItemId(),
         isFishing: false,
         biome: null,
         luck: 0,
@@ -78,7 +80,11 @@ const getFishInfos = () => {
         // timeUntilLured: 0,
         // timeUntilHooked: 0,
         catchType: null,
-        minigame: FishCatchMinigame.ACTIVE_MINIGAMES
+        minigame: FishCatchMinigame.ACTIVE_MINIGAMES?.filter(game => {
+            let gameplayer = getDecalaredFieldValue(game, RefClass.FishCatchMinigame, 'player')
+            let uuid = Reflection.getReflect(gameplayer).field('field_5981').get()
+            return uuid == Player.getPlayer().getUUID()
+        })
     }
 
     let mc_player = Reflection.getReflect(Client.getMinecraft()).field('field_1724') // .player
@@ -106,15 +112,22 @@ const getFishInfos = () => {
         attrs: res,
         display: [
             // `时间: ${res.time.toLocaleString()}`,
-            `垂钓中: ${res.isFishing ? '是' : '否'}`,
-            `幸运值: ${res.luck}`,
-            `诱饵速度: ${res.lureSpeed}`,
+            `主手: ${res.mainHand}`,
+            `垂钓: ${res.isFishing ? '是' : '否'}`,
+            // `幸运值: ${res.luck}`,
+            // `诱饵速度: ${res.lureSpeed}`,
             // `垂钓时限: ${res.timeUntilHooked}`,
             // `诱饵时限: ${res.timeUntilLured}`,
             `渔获: ${res.catchType}`,
-            `钓鱼游戏: ${res.minigame}`
+            `游戏: ${res.minigame}`,
         ]
     }
+}
+const showFishInfo = () => {
+    let fishInfos = getFishInfos()
+    for (let i = 0; i < fishInfos.display.length; i++)
+        fish_panel[i]?.setText(fishInfos.display[i])
+    return fishInfos
 }
 
 const getMinigameProgress = () => {
@@ -145,7 +158,7 @@ if (isToggle()) {
     fish_d2d.setOnInit(JavaWrapper.methodToJava(() => {
         let fishInfos = getFishInfos()
         let gamePs = getMinigameProgress()
-        fishInfos.display.push(`游戏进度：${gamePs.accuracyKey}`)
+        fishInfos.display.push(`进度: ${gamePs.accuracyKey}`)
         for (let i = 0; i < fishInfos.display.length; i++) {
             fish_panel.push(fish_d2d.addText(
                 fishInfos.display[i],
@@ -159,34 +172,30 @@ if (isToggle()) {
 }
 
 while (isToggle()) {
-    let fishInfos = getFishInfos()
-    for (let i = 0; i < fishInfos.display.length; i++)
-        fish_panel[i]?.setText(fishInfos.display[i])
+    let fishInfos = showFishInfo()
 
-    if (fishInfos.attrs.catchType == 'FISH') {
-        if (FishCatchMinigame.ACTIVE_MINIGAMES.length == 0) {
+    if (FishCatchMinigame.ACTIVE_MINIGAMES.length > 0) {
+        fishInfos = showFishInfo()
+        for (let game of fishInfos.attrs.minigame) {
+            do {
+                let gamePs = getMinigameProgress()
+                fish_panel[fish_panel.length - 1]?.setText(`进度: ${gamePs.accuracyKey}(${Math.round(gamePs.accuracy * 10000) / 100}%)`)
+                if (gamePs.accuracy < 0.07)
+                    break
+                Time.sleep(1)
+            } while (isToggle())
+            game.interact()
+            Client.waitTick(10)
+        }
+    } else if (fishInfos.attrs.catchType == 'FISH') {
+        if (fishInfos.attrs.minigame.length == 0) {
             Player.getInteractionManager().interact()
             Client.waitTick(3)
-            if (FishCatchMinigame.ACTIVE_MINIGAMES.length > 0) {
-                for (let game of FishCatchMinigame.ACTIVE_MINIGAMES) {
-                    let gameplayer = getDecalaredFieldValue(game, RefClass.FishCatchMinigame, 'player')
-                    let uuid = Reflection.getReflect(gameplayer).field('field_5981').get()
-                    if (uuid == Player.getPlayer().getUUID()) {
-                        do {
-                            let gamePs = getMinigameProgress()
-                            fish_panel[fish_panel.length - 1]?.setText(`游戏进度：${gamePs.accuracyKey}(${Math.round(gamePs.accuracy * 10000) / 100}%)`)
-                            if (gamePs.accuracy < 0.07)
-                                break
-                            Time.sleep(1)
-                        } while (isToggle())
-                        Player.getInteractionManager().interact()
-                        Client.waitTick(30)
-                    }
-                }
-            }
         }
     } else if (fishInfos.attrs.catchType != 'NOTHING') {
-        Player.getInteractionManager().interact()
-        Client.waitTick(30)
+        if (fishInfos.attrs.mainHand.match('fishing_rod')) {
+            Player.getInteractionManager().interact()
+        }
+        Client.waitTick(10)
     }
 }
