@@ -3,11 +3,12 @@
 // 依赖模组: 宏(jsmacros)、潮汐(Tide)
 // 创建时间: 2024-11-21
 // 修改时间: 2024-11-23
-// 当前版本: v1.2
-// 更新内容: v1.2 增加丢弃物品名单，修改板条箱概率为100%，适配有经验修补的钓竿
+// 当前版本: v1.3
+// 更新内容: v1.3 兼容多人游戏（仅可连续钓鱼）
+// 更新内容: v1.2 增加丢弃物品名单，修改单机游戏参数（板条箱概率为100%，适配有经验修补的钓竿）
 // 更新内容: v1.1 检测主手是否是钓竿
 // 更新内容: v1.0 初始化脚本
-// 注意事项：板条箱类似重力方块被钓上来，挂机时在脚下和周边铺上按钮，防止板条箱过多影响持续钓鱼
+// 注意事项：板条箱类似重力方块被钓上来，挂机时在脚下和周边铺上按钮等不完整方块，防止板条箱过多影响持续钓鱼
 
 const scriptName = 'TideFishMinigame.ToggleScript'
 const isToggle = () => GlobalVars.getBoolean(scriptName)
@@ -40,6 +41,7 @@ const RefClass = {
     TidePlayerData: Reflection.getClass('com.li64.tide.data.player.TidePlayerData'),
     HookAccessor: Reflection.getClass('com.li64.tide.registries.entities.misc.fishing.HookAccessor'),
     TideFishingHook: Reflection.getClass('com.li64.tide.registries.entities.misc.fishing.TideFishingHook'),
+    CatchType: Reflection.getClass('com.li64.tide.registries.entities.misc.fishing.TideFishingHook$CatchType'),
     CatchMinigameOverlay: Reflection.getClass('com.li64.tide.client.gui.overlays.CatchMinigameOverlay'),
 }
 const printFields = (target) => {
@@ -81,11 +83,14 @@ const getFishInfos = () => {
         catchType: null,
         isOpenWaterFishing: false,
         hookItem: null,
-        minigame: FishCatchMinigame.ACTIVE_MINIGAMES?.filter(game => {
-            let gameplayer = getDecalaredFieldValue(game, RefClass.FishCatchMinigame, 'player')
-            let uuid = Reflection.getReflect(gameplayer).field('field_5981').get()
-            return uuid == Player.getPlayer().getUUID()
-        }),
+        minigame: Reflection.getField(RefClass.FishCatchMinigame, 'ACTIVE_MINIGAMES').get(null),
+        // minigame: getDecalaredFieldValue(RefClass.FishCatchMinigame, RefClass.FishCatchMinigame, 'ACTIVE_MINIGAMES'),
+        // minigame: FishCatchMinigame.ACTIVE_MINIGAMES.ACTIVE_MINIGAMES?.filter(game => {
+        //     let gameplayer = getDecalaredFieldValue(game, RefClass.FishCatchMinigame, 'player')
+        //     let uuid = Reflection.getReflect(gameplayer).field('field_5981').get()
+        //     return uuid == Player.getPlayer().getUUID()
+        // }),
+        minigameActive: false,
     }
 
     let mc_player = Reflection.getReflect(Client.getMinecraft()).field('field_1724') // .player
@@ -108,6 +113,7 @@ const getFishInfos = () => {
                 currentState: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'currentState'),
                 catchType: tide_hook?.getCatchType(),
                 isOpenWaterFishing: tide_hook?.isOpenWaterFishing(),
+                minigameActive: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'minigameActive'),
             }
         }
     }
@@ -120,8 +126,8 @@ const getFishInfos = () => {
             `垂钓: ${res.isFishing ? '是' : '否'}`,
             `状态: ${res.currentState}`,
             `渔获: ${res.catchType}`,
-            `宝藏: ${Math.round(100 / Tide.CONFIG.general.baseCrateRarity)}%`,
-            // `游戏: ${res.minigame}`,
+            // `宝藏: ${Math.round(100 / Tide.CONFIG.general.baseCrateRarity)}%`,
+            `游戏: ${res.minigameActive} ${res.minigame}`,
             // `待钓: ${res.nibble}`,
             // `幸运值: ${res.luck}`,
             // `诱饵速度: ${res.lureSpeed}`,
@@ -206,39 +212,55 @@ if (isToggle()) {
     }))
 
     Object.keys(TideGeneralConfig).forEach(k => Tide.CONFIG.general[k] = TideGeneralConfig[k])
+
+    // let mc_player = Reflection.getReflect(Client.getMinecraft()).field('field_1724') // .player
+    // let hook = mc_player.field('field_7513')
+    // if (hook != null) {
+    //     if (hook?.get() != null) {
+    //         let tide_hook = getDecalaredFieldValue(hook?.get(), RefClass.HookAccessor, 'hook')
+    //         printProperty(tide_hook)
+    //         Chat.log({
+    //             biome: tide_hook?.getBiome(),
+    //             nibble: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'nibble'),
+    //             luck: tide_hook?.getLuck(),
+    //             lureSpeed: tide_hook?.getLureSpeed(),
+    //             timeUntilLured: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilLured'),
+    //             timeUntilHooked: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilHooked'),
+    //             currentState: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'currentState'),
+    //             catchType: tide_hook?.getCatchType(),
+    //             isOpenWaterFishing: tide_hook?.isOpenWaterFishing(),
+    //         })
+    //     }
+    // }
 }
-Chat.log(Player.getPlayer().getMainHand())
+
 while (isToggle()) {
     // 当有经验修补时会交替钓鱼和板条箱补充耐久
     let mainHand = Player.getPlayer().getMainHand()
     Tide.CONFIG.general.baseCrateRarity = mainHand.getDurability() < mainHand.getMaxDurability() - 10 &&
         /fishing_rod$/.test(mainHand.getItemId()) &&
         mainHand.getEnchantments().some(v => v.getId() == 'minecraft:mending') ? 20 : TideGeneralConfig.baseCrateRarity
-    
+
     let fishInfos = showFishInfo()
-    if (FishCatchMinigame.ACTIVE_MINIGAMES.length > 0) {
-        fishInfos = showFishInfo()
-        for (let game of fishInfos.attrs.minigame) {
-            do {
-                let gamePs = getMinigameProgress()
-                fish_panel[fish_panel.length - 1]?.setText(`进度: ${gamePs.accuracyKey}(${Math.round(gamePs.accuracy * 10000) / 100}%)`)
-                if (gamePs.accuracy < 0.07)
-                    break
-                Time.sleep(1)
-            } while (isToggle())
-            game.interact()
-            Client.waitTick(10)
-        }
+    if (fishInfos.attrs.minigameActive) {
+        do {
+            let gamePs = getMinigameProgress()
+            fish_panel[fish_panel.length - 1]?.setText(`进度: ${gamePs.accuracyKey}(${Math.round(gamePs.accuracy * 10000) / 100}%)`)
+            if (gamePs.accuracy < 0.07)
+                break
+            Time.sleep(1)
+        } while (isToggle())
+        Player.getInteractionManager().interact()
+        Client.waitTick(10)
     } else if (fishInfos.attrs.catchType == 'FISH') {
-        if (fishInfos.attrs.minigame.length == 0) {
+        if (!fishInfos.attrs.minigameActive) {
             Player.getInteractionManager().interact()
             Client.waitTick(3)
         }
     } else if (fishInfos.attrs.catchType != 'NOTHING' ||
         (fishInfos.attrs.isFishing && fishInfos.attrs.catchType == 'NOTHING' && /FLYING|HOOKED_IN_ENTITY/.test(fishInfos.attrs.currentState))) {
-        if (fishInfos.attrs.mainHand.getItemId().match('fishing_rod')) {
+        if (fishInfos.attrs.mainHand.getItemId().match('fishing_rod'))
             Player.getInteractionManager().interact()
-        }
         Client.waitTick(10)
     }
 }
