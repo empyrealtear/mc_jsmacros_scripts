@@ -1,9 +1,10 @@
 // 脚本名称: 潮汐自动钓鱼
 // 功能介绍: 检测钓鱼小游戏进度，在接近完美时收杆（暂不能百分百完美）
-// 依赖模组: 宏(jsmacros)、潮汐(Tide)
+// 依赖模组: 宏(jsmacros)、潮汐(Tide 1.3.4)
 // 创建时间: 2024-11-21
-// 修改时间: 2024-11-23
-// 当前版本: v1.3
+// 修改时间: 2024-12-30
+// 当前版本: v1.4
+// 更新内容: v1.4 钓钩实体获取改为jsmacros getFishingBobber方法
 // 更新内容: v1.3 兼容多人游戏（仅可连续钓鱼）
 // 更新内容: v1.2 增加丢弃物品名单，修改单机游戏参数（板条箱概率为100%，适配有经验修补的钓竿）
 // 更新内容: v1.1 检测主手是否是钓竿
@@ -28,13 +29,6 @@ setToggle(reverse)
 const FishCatchMinigame = Java.type('com.li64.tide.data.minigame.FishCatchMinigame')
 const Tide = Java.type('com.li64.tide.Tide')
 const RefClass = {
-    // 参考来源：https://mappings.dev/1.21.1/index.html
-    MinecraftClient: Reflection.getClass('net.minecraft.class_310'), // net.minecraft.client.MinecraftClient
-    GameConfig: Reflection.getClass('net.minecraft.class_542'), // net.minecraft.client.GameConfig
-    MCPlayer: Reflection.getClass('net.minecraft.class_1657'), // net.minecraft.world.entity.player.Player
-    MCServerPlayer: Reflection.getClass('net.minecraft.class_3222'), // net.minecraft.server.level.ServerPlayer
-    FishingHook: Reflection.getClass('net.minecraft.class_542'), // net.minecraft.world.entity.projectile.FishingHook
-
     // 参考来源：https://github.com/Lightning-64/Tide/tree/main/common/src/main/java/com/li64/tide
     Tide: Reflection.getClass('com.li64.tide.Tide'),
     FishCatchMinigame: Reflection.getClass('com.li64.tide.data.minigame.FishCatchMinigame'),
@@ -93,28 +87,25 @@ const getFishInfos = () => {
         minigameActive: false,
     }
 
-    let mc_player = Reflection.getReflect(Client.getMinecraft()).field('field_1724') // .player
-    let hook = mc_player.field('field_7513')
+    let hook = Player.getPlayer().getFishingBobber()?.getRaw()
+    res = {
+        ...res,
+        isFishing: hook == null ? false : true
+    }
     if (hook != null) {
+        let tide_hook = getDecalaredFieldValue(hook, RefClass.HookAccessor, 'hook')
         res = {
             ...res,
-            isFishing: hook.get()?.isFishing() ?? false
-        }
-        if (hook?.get() != null) {
-            let tide_hook = getDecalaredFieldValue(hook?.get(), RefClass.HookAccessor, 'hook')
-            res = {
-                ...res,
-                biome: tide_hook?.getBiome(),
-                nibble: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'nibble'),
-                luck: tide_hook?.getLuck(),
-                lureSpeed: tide_hook?.getLureSpeed(),
-                timeUntilLured: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilLured'),
-                timeUntilHooked: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilHooked'),
-                currentState: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'currentState'),
-                catchType: tide_hook?.getCatchType(),
-                isOpenWaterFishing: tide_hook?.isOpenWaterFishing(),
-                minigameActive: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'minigameActive'),
-            }
+            biome: tide_hook?.getBiome(),
+            nibble: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'nibble'),
+            luck: tide_hook?.getLuck(),
+            lureSpeed: tide_hook?.getLureSpeed(),
+            timeUntilLured: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilLured'),
+            timeUntilHooked: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilHooked'),
+            currentState: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'currentState'),
+            catchType: tide_hook?.getCatchType(),
+            isOpenWaterFishing: tide_hook?.isOpenWaterFishing(),
+            minigameActive: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'minigameActive'),
         }
     }
 
@@ -212,26 +203,6 @@ if (isToggle()) {
     }))
 
     Object.keys(TideGeneralConfig).forEach(k => Tide.CONFIG.general[k] = TideGeneralConfig[k])
-
-    // let mc_player = Reflection.getReflect(Client.getMinecraft()).field('field_1724') // .player
-    // let hook = mc_player.field('field_7513')
-    // if (hook != null) {
-    //     if (hook?.get() != null) {
-    //         let tide_hook = getDecalaredFieldValue(hook?.get(), RefClass.HookAccessor, 'hook')
-    //         printProperty(tide_hook)
-    //         Chat.log({
-    //             biome: tide_hook?.getBiome(),
-    //             nibble: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'nibble'),
-    //             luck: tide_hook?.getLuck(),
-    //             lureSpeed: tide_hook?.getLureSpeed(),
-    //             timeUntilLured: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilLured'),
-    //             timeUntilHooked: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilHooked'),
-    //             currentState: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'currentState'),
-    //             catchType: tide_hook?.getCatchType(),
-    //             isOpenWaterFishing: tide_hook?.isOpenWaterFishing(),
-    //         })
-    //     }
-    // }
 }
 
 while (isToggle()) {
@@ -242,17 +213,26 @@ while (isToggle()) {
         mainHand.getEnchantments().some(v => v.getId() == 'minecraft:mending') ? 20 : TideGeneralConfig.baseCrateRarity
 
     let fishInfos = showFishInfo()
+
+
     if (fishInfos.attrs.minigameActive) {
         do {
             let gamePs = getMinigameProgress()
             fish_panel[fish_panel.length - 1]?.setText(`进度: ${gamePs.accuracyKey}(${Math.round(gamePs.accuracy * 10000) / 100}%)`)
-            if (gamePs.accuracy < 0.07)
+            if (gamePs.accuracy < 0.07 || !gamePs.active)
                 break
             Time.sleep(1)
         } while (isToggle())
         Player.getInteractionManager().interact()
         Client.waitTick(10)
     } else if (fishInfos.attrs.catchType == 'FISH') {
+        if (!fishInfos.attrs.isFishing) {
+            // Client.waitTick()
+            Player.getInteractionManager().interact()
+            Client.waitTick(3)
+            continue
+        }
+
         if (!fishInfos.attrs.minigameActive) {
             Player.getInteractionManager().interact()
             Client.waitTick(3)
