@@ -5,3 +5,4 @@
 ## 脚本清单
 
 - 潮汐自动钓鱼: [TideFishMinigame.ts](./TideFishMinigame.ts)
+- 星露谷插件自动钓鱼: [CustomFishing.ts](./CustomFishing.ts)
