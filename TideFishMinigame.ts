@@ -12,22 +12,21 @@
 // 注意事项：板条箱类似重力方块被钓上来，挂机时在脚下和周边铺上按钮等不完整方块，防止板条箱过多影响持续钓鱼
 
 const scriptName = 'TideFishMinigame.ToggleScript'
-const isToggle = () => GlobalVars.getBoolean(scriptName)
 const mclog = (preix, msg, preixColor = 0x5, msgColor = 0x7) => {
     Chat.log(Chat.createTextBuilder()
         .append("[").withColor(preixColor).append(preix).withColor(preixColor).append("]").withColor(preixColor)
         .append(" " + msg).withColor(msgColor).build())
 }
+const isToggle = () => GlobalVars.getBoolean(scriptName)
 const setToggle = (value) => {
     GlobalVars.putBoolean(scriptName, value)
     mclog(scriptName, value ? "enabled" : "disabled")
 }
-var reverse = !isToggle()
-setToggle(reverse)
+setToggle(!isToggle())
 
 // 函数区
-const FishCatchMinigame = Java.type('com.li64.tide.data.minigame.FishCatchMinigame')
 const Tide = Java.type('com.li64.tide.Tide')
+const FishCatchMinigame = Java.type('com.li64.tide.data.minigame.FishCatchMinigame')
 const RefClass = {
     // 参考来源：https://github.com/Lightning-64/Tide/tree/main/common/src/main/java/com/li64/tide
     Tide: Reflection.getClass('com.li64.tide.Tide'),
@@ -62,11 +61,13 @@ const setDecalaredFieldValue = (obj, javaClass, name, value) => {
     field.setAccessible(true)
     return field.set(obj, value)
 }
+
 const getFishInfos = () => {
     let res = {
         // time: new Date(),
         mainHand: Player.getPlayer().getMainHand(),
         isFishing: false,
+        hook: Player.getPlayer().getFishingBobber()?.getRaw(),
         biome: null,
         nibble: 0,
         luck: 0,
@@ -85,27 +86,40 @@ const getFishInfos = () => {
         //     return uuid == Player.getPlayer().getUUID()
         // }),
         minigameActive: false,
+        isTideMod: false
     }
 
     let hook = Player.getPlayer().getFishingBobber()?.getRaw()
     res = {
         ...res,
+        hook: hook,
         isFishing: hook == null ? false : true
     }
     if (hook != null) {
-        let tide_hook = getDecalaredFieldValue(hook, RefClass.HookAccessor, 'hook')
-        res = {
-            ...res,
-            biome: tide_hook?.getBiome(),
-            nibble: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'nibble'),
-            luck: tide_hook?.getLuck(),
-            lureSpeed: tide_hook?.getLureSpeed(),
-            timeUntilLured: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilLured'),
-            timeUntilHooked: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilHooked'),
-            currentState: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'currentState'),
-            catchType: tide_hook?.getCatchType(),
-            isOpenWaterFishing: tide_hook?.isOpenWaterFishing(),
-            minigameActive: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'minigameActive'),
+        try {
+            let tide_hook = getDecalaredFieldValue(hook, RefClass.HookAccessor, 'hook')
+            res = {
+                ...res,
+                hook: hook,
+                biome: tide_hook?.getBiome(),
+                nibble: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'nibble'),
+                luck: tide_hook?.getLuck(),
+                lureSpeed: tide_hook?.getLureSpeed(),
+                timeUntilLured: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilLured'),
+                timeUntilHooked: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'timeUntilHooked'),
+                currentState: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'currentState'),
+                catchType: tide_hook?.getCatchType(),
+                isOpenWaterFishing: tide_hook?.isOpenWaterFishing(),
+                minigameActive: getDecalaredFieldValue(tide_hook, RefClass.TideFishingHook, 'minigameActive'),
+                isTideMod: true
+            }
+        } catch (error) {
+            res = {
+                ...res,
+                hook: Player.getPlayer().getFishingBobber(),
+                catchType: Player.getPlayer().getFishingBobber()?.hasCaughtFish(),
+                isTideMod: false
+            }
         }
     }
 
@@ -115,10 +129,13 @@ const getFishInfos = () => {
             // `时间: ${res.time.toLocaleString()}`,
             `主手: ${res.mainHand.getName().getString()}(${res.mainHand.getDurability()}/${res.mainHand.getMaxDurability()})`,
             `垂钓: ${res.isFishing ? '是' : '否'}`,
+            `钓钩: ${res.hook}`,
             `状态: ${res.currentState}`,
             `渔获: ${res.catchType}`,
+            `文本: ${res.minigameActive} ${res.minigame}`,
             // `宝藏: ${Math.round(100 / Tide.CONFIG.general.baseCrateRarity)}%`,
             `游戏: ${res.minigameActive} ${res.minigame}`,
+
             // `待钓: ${res.nibble}`,
             // `幸运值: ${res.luck}`,
             // `诱饵速度: ${res.lureSpeed}`,
@@ -172,7 +189,7 @@ const fish_d2d_setting = {
 }
 const fish_panel = []
 let mcTickListener
-const dropItemMatch = /烈焰剑鱼|碗|便条/
+const dropItemMatch = /烈焰剑鱼|碗|便条|板条箱/
 const TideGeneralConfig = {
     holdToCast: false, // 蓄力抛竿，默认值：true
     baseCrateRarity: 1, // 板条箱基础概率（1 / baseCrateRarity * 100%），默认值：20
@@ -205,6 +222,7 @@ if (isToggle()) {
     Object.keys(TideGeneralConfig).forEach(k => Tide.CONFIG.general[k] = TideGeneralConfig[k])
 }
 
+// printFields(Reflection.getReflect(Player.getPlayer().getFishingBobber()?.getRaw()))
 while (isToggle()) {
     // 当有经验修补时会交替钓鱼和板条箱补充耐久
     let mainHand = Player.getPlayer().getMainHand()
@@ -214,34 +232,44 @@ while (isToggle()) {
 
     let fishInfos = showFishInfo()
 
+    if (fishInfos.attrs.isTideMod) {
+        if (fishInfos.attrs.minigameActive) {
+            do {
+                let gamePs = getMinigameProgress()
+                fish_panel[fish_panel.length - 1]?.setText(`进度: ${gamePs.accuracyKey}(${Math.round(gamePs.accuracy * 10000) / 100}%)`)
+                if (gamePs.accuracy < 0.07 || !gamePs.active)
+                    break
+                Time.sleep(1)
+            } while (isToggle())
+            Player.getInteractionManager().interact()
+            Client.waitTick(10)
+        } else if (fishInfos.attrs.catchType == 'FISH') {
+            if (!fishInfos.attrs.isFishing) {
+                // Client.waitTick()
+                Player.getInteractionManager().interact()
+                Client.waitTick(3)
+                continue
+            }
 
-    if (fishInfos.attrs.minigameActive) {
-        do {
-            let gamePs = getMinigameProgress()
-            fish_panel[fish_panel.length - 1]?.setText(`进度: ${gamePs.accuracyKey}(${Math.round(gamePs.accuracy * 10000) / 100}%)`)
-            if (gamePs.accuracy < 0.07 || !gamePs.active)
-                break
-            Time.sleep(1)
-        } while (isToggle())
-        Player.getInteractionManager().interact()
-        Client.waitTick(10)
-    } else if (fishInfos.attrs.catchType == 'FISH') {
-        if (!fishInfos.attrs.isFishing) {
-            // Client.waitTick()
-            Player.getInteractionManager().interact()
-            Client.waitTick(3)
-            continue
+            if (!fishInfos.attrs.minigameActive) {
+                Player.getInteractionManager().interact()
+                Client.waitTick(3)
+            }
+        } else if (fishInfos.attrs.catchType != 'NOTHING' ||
+            (fishInfos.attrs.isFishing && fishInfos.attrs.catchType == 'NOTHING' && /FLYING|HOOKED_IN_ENTITY/.test(fishInfos.attrs.currentState))) {
+            if (fishInfos.attrs.mainHand.getItemId().match('fishing_rod'))
+                Player.getInteractionManager().interact()
+            Client.waitTick(10)
         }
-
-        if (!fishInfos.attrs.minigameActive) {
+    } else {
+        if (fishInfos.attrs.catchType) {
             Player.getInteractionManager().interact()
-            Client.waitTick(3)
+            Client.waitTick(10)
+        } else if (!fishInfos.attrs.isFishing) {
+            if (fishInfos.attrs.mainHand.getItemId().match('fishing_rod'))
+                Player.getInteractionManager().interact()
+            Client.waitTick(10)
         }
-    } else if (fishInfos.attrs.catchType != 'NOTHING' ||
-        (fishInfos.attrs.isFishing && fishInfos.attrs.catchType == 'NOTHING' && /FLYING|HOOKED_IN_ENTITY/.test(fishInfos.attrs.currentState))) {
-        if (fishInfos.attrs.mainHand.getItemId().match('fishing_rod'))
-            Player.getInteractionManager().interact()
-        Client.waitTick(10)
     }
 }
 
