@@ -142,6 +142,14 @@ let titleContainer = { TITLE: null, SUBTITLE: null, ACTIONBAR: null }
 const logFile = FS.open("D:/Game/Minecraft/jsmacros/typescript/jsmlogs.txt")
 
 // 函数区
+const getDecalaredFieldValue = (obj, javaClass, name) => {
+    if (obj == null)
+        return null
+
+    let field = Reflection.getDeclaredField(javaClass, name)
+    field.setAccessible(true)
+    return field.get(obj)
+}
 const getCustomFishInfos = () => {
     let res = {
         time: new Date(), mainHand: null, hook: null, isFishing: false,
@@ -300,7 +308,6 @@ const getCustomFishInfos = () => {
         titleContainer = { TITLE: null, SUBTITLE: null, ACTIONBAR: null }
     }
 
-
     return {
         attrs: res,
         display: [
@@ -361,14 +368,16 @@ if (isToggle()) {
             // 挂机问答
             let matches = /[\(（](?<val>.*)[）\)]$/.exec(content.trim())
             let answer = matches?.groups['val'].split(/[\:：]/)[1]?.trim()
-            Chat.log(content)
-            Chat.say(answer)
+            if (!matches?.groups['val']?.includes('最佳记录')) {
+                Chat.log(content)
+                Chat.say(answer)
+            }
         } else if (/[0-9]+\=\?$/.test(content.trim())) {
             let matches = /^(?<val>.*)\=\?$/.exec(content.trim())
             let val = matches?.groups['val']?.replace(/[x×]/, '*')?.replace('÷', '/')?.replace('＋', '+')
             try {
                 let answer = eval(val)
-                Chat.say(answer)
+                Chat.say(`${answer}`)
             } catch (err) {
                 Chat.log(err)
                 logFile.append(val + '\n')
@@ -392,7 +401,7 @@ while (isToggle()) {
             if (game.ui) {
                 if (/b01[1-4]$/.test(game.ui.progress)) {
                     keyClick('key.keyboard.left.shift')
-                    Client.waitTick(parseInt(game.ui.progress[game.ui.progress.length - 1]) * 3)
+                    // Client.waitTick((parseInt(game.ui.progress[game.ui.progress.length - 1]) - 1) * 2)
                 }
             }
         } else if (game.type == 'ClickGame') {
@@ -402,19 +411,23 @@ while (isToggle()) {
         } else if (game.type == 'DanceGame') {
             if (game.ui) {
                 if (danceCache != game.ui.gray) {
-                    Client.waitTick(5)
                     keyClick(game.ui.action)
                     danceCache = game.ui.gray
-                    Client.waitTick(20)
+                    Client.waitTick(5)
                 }
             }
         } else if (game.type == 'AccurateClickGame') {
             if (game.ui) {
-                if (game.ui.chance == 1)
+                if (game.ui.chance == 1 && game.ui.index >= 0)
                     keyClick('key.mouse.right')
             }
         } else if (game.type == 'HoldGame') {
-
+            // if (game.ui) {
+            //     if (game.ui.pointerPosition < game.ui.judgementPosition) {
+            //         keyClick('key.keyboard.left.shift')
+            //     }
+            // }
+            keyClick('key.mouse.right')
         }
     } else {
         danceCache = null
