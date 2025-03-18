@@ -1,9 +1,10 @@
 // 脚本名称: 星露谷自动钓鱼
 // 功能介绍: 检测钓鱼游戏进度，在接近完美时收杆
-// 依赖模组: 宏(jsmacros)、CustomFishing
+// 依赖模组: 宏(jsmacros)、CustomFishing插件（服务端）
 // 创建时间: 2025-03-16
-// 修改时间: 2025-03-16
-// 当前版本: v1.0
+// 修改时间: 2025-03-18
+// 当前版本: v1.1
+// 更新内容: v1.1 调整参数，缩短点击间隔
 // 更新内容: v1.0 初始化脚本
 
 const scriptName = 'CustomFishing.ToggleScript'
@@ -152,7 +153,7 @@ const getDecalaredFieldValue = (obj, javaClass, name) => {
 }
 const getCustomFishInfos = () => {
     let res = {
-        time: new Date(), mainHand: null, hook: null, isFishing: false,
+        time: new Date(), mainHand: null, hook: null, isFishing: false, entity: null,
 
         TITLE: titleContainer.TITLE,
         SUBTITLE: titleContainer.SUBTITLE,
@@ -162,11 +163,23 @@ const getCustomFishInfos = () => {
             type: null,
             ui: null,
         },
+        value: 0
     }
 
     res.mainHand = Player.getPlayer().getMainHand()
     res.hook = Player.getPlayer().getFishingBobber()?.getRaw()
     res.isFishing = res.hook == null ? false : true
+    res.entity = Player.getPlayer().getFishingBobber()?.getHookedEntity()
+
+    let inv = Player.openInventory()
+    inv.getSlots(['main', 'hotbar'])?.forEach(i => {
+        let slot = inv.getSlot(i)
+        let price = slot.getNBT()?.resolve('Price')
+        if (price != null) {
+            res.value += price[0].asNumberHelper().asFloat()
+        }
+    })
+    res.value = Math.round(res.value * 100) / 100
 
     if (res.isFishing) {
         if (res.TITLE && res.SUBTITLE) {
@@ -233,21 +246,17 @@ const getCustomFishInfos = () => {
                         judgementArea: customfishingfont["default"][data.extra[2].text.charCodeAt().toString(16)],
                         // pointer: customfishingfont["default"][data.extra[4].text.charCodeAt().toString(16)],
                     }
-                    // // "bar-effective-area-width": 155, "judgment-area-offset": -160, "judgment-area-width": 45
-                    let judgementPosition = ui.judgementArea["bar-effective-area-width"] + ui.judgementAreaOffset + Math.floor(ui.judgementArea["judgment-area-width"] / 2)
-                    let pointerPosition = ui.judgementArea["bar-effective-area-width"] + ui.pointerOffset
+                    // "bar-effective-area-width": 155, "judgment-area-offset": -160, "judgment-area-width": 45
+                    let judgementPosition = - ui.judgementArea["judgment-area-offset"] + ui.judgementAreaOffset
+                    let pointerPosition = - (- judgementPosition - ui.judgementArea["judgment-area-width"] - 1) + ui.pointerOffset
                     res.game.ui = {
                         barChar: barChar,
                         judgementAreaOffset: ui.judgementAreaOffset,
                         pointerOffset: ui.pointerOffset,
                         judgementPosition: judgementPosition,
+                        judgementWidth: ui.judgementArea["judgment-area-width"],
                         pointerPosition: pointerPosition
                     }
-                    // // if (pointer < judgePointer) {
-                    // //     keyClick('key.keyboard.left.shift', 1)
-                    // // }
-                    // // logFile.append(JSON.stringify(ui) + '\n')
-                    // keyClick('key.mouse.right')
                 } else {
                     res.game.type = 'AccurateClickGame' // 打靶游戏
                     // private void showUI() {
@@ -269,9 +278,9 @@ const getCustomFishInfos = () => {
                         .join("+"))
                     let bar = customfishingfont["default"][barChar]
                     let pointer = customfishingfont["default"][data.extra[2].text.charCodeAt().toString(16)]
-                    let totalWidth = 16 * 11
+                    let totalWidth = 195 // 16 * 12 + 3
                     let pointerOffset = -183
-                    let widthPerSection = totalWidth / bar.rate.length
+                    let widthPerSection = (16 * 11) / bar.rate.length
                     // let progress = - pointerOffset + progressOffset
                     let progress = totalWidth + progressOffset
                     let index = Math.floor(progress / widthPerSection)
@@ -280,7 +289,8 @@ const getCustomFishInfos = () => {
                         progressOffset: progressOffset,
                         progress: progress,
                         index: index,
-                        chance: bar.rate[index + 16 / widthPerSection],
+                        interval: 16 / widthPerSection,
+                        rate: bar.rate,
                         // bar: bar,
                         // pointer: pointer
                     }
@@ -311,14 +321,16 @@ const getCustomFishInfos = () => {
     return {
         attrs: res,
         display: [
-            `时间: ${res.time.toLocaleString()}`,
+            // `时间: ${res.time.toLocaleString()}`,
             `主手: ${res.mainHand.getName().getString()}(${res.mainHand.getDurability()}/${res.mainHand.getMaxDurability()})`,
             `钓钩: ${res.hook}`,
+            `上钩: ${res.entity}`,
             `垂钓: ${res.isFishing ? '是' : '否'}`,
             // `TITLE: ${res.TITLE}`,
             // `SUBTITLE: ${res.SUBTITLE}`,
             // `ACTIONBAR: ${res.ACTIONBAR}`,
             `游戏: ${JSON.stringify(res.game)}`,
+            `价值: ${res.value}`,
         ]
     }
 }
@@ -328,9 +340,10 @@ const showCustomFishInfo = () => {
         fish_panel[i]?.setText(fishInfos.display[i])
     return fishInfos
 }
-const keyClick = (key, delay = 5) => {
+const keyClick = (key, delay = 0) => {
     KeyBind.pressKey(key)
-    Client.waitTick(delay)
+    if (delay > 0)
+        Client.waitTick(delay)
     KeyBind.releaseKey(key)
 }
 
@@ -384,24 +397,26 @@ if (isToggle()) {
             }
         } else {
             if (/按下 左Shift 开始/.test(content)) {
-                keyClick('key.keyboard.left.shift')
+                keyClick('key.keyboard.left.shift', 1)
             }
         }
     }))
 }
 
 let danceCache = null
+let predictProgress = 0
 while (isToggle()) {
-    // 当有经验修补时会交替钓鱼和板条箱补充耐久
     let fishInfos = showCustomFishInfo()
     if (fishInfos.attrs.isFishing) {
+        if (fishInfos.attrs.entity) {
+            keyClick('key.mouse.right', 1)
+            Client.waitTick(20 * 1.5)
+        }
         let game = fishInfos.attrs.game
         if (game.type == 'TensionGame') {
-            // let icons = JSON.parse(fishInfos.attrs.TITLE.message.getJson())?.text?.charCodeAt()?.toString(16)
             if (game.ui) {
-                if (/b01[1-4]$/.test(game.ui.progress)) {
-                    keyClick('key.keyboard.left.shift')
-                    // Client.waitTick((parseInt(game.ui.progress[game.ui.progress.length - 1]) - 1) * 2)
+                if (/b01[1-3]$/.test(game.ui.progress)) {
+                    keyClick('key.keyboard.left.shift', 6 - parseInt(game.ui.progress[game.ui.progress.length - 1]))
                 }
             }
         } else if (game.type == 'ClickGame') {
@@ -413,18 +428,30 @@ while (isToggle()) {
                 if (danceCache != game.ui.gray) {
                     keyClick(game.ui.action)
                     danceCache = game.ui.gray
-                    Client.waitTick(5)
+                    Client.waitTick()
                 }
             }
         } else if (game.type == 'AccurateClickGame') {
             if (game.ui) {
-                if (game.ui.chance == 1 && game.ui.index >= 0)
+                let chance = game.ui.rate[game.ui.index]
+                // let chance = game.ui.rate[Math.ceil(game.ui.index + 1 * Math.sign(game.ui.progress - predictProgress))]
+                // logFile.append(JSON.stringify([chance, speed, game.ui]) + '\n')
+                if (chance == 1) {
                     keyClick('key.mouse.right')
+                    predictProgress = 0
+                } else {
+                    predictProgress = game.ui.progress
+                }
             }
         } else if (game.type == 'HoldGame') {
             // if (game.ui) {
             //     if (game.ui.pointerPosition < game.ui.judgementPosition) {
-            //         keyClick('key.keyboard.left.shift')
+            //         keyClick('key.keyboard.left.shift', 2)
+            //         Client.waitTick(1)
+            //     } else if (game.ui.pointerPosition >= game.ui.judgementPosition
+            //         && game.ui.pointerPosition <= game.ui.judgementPosition + game.ui.judgementWidth) {
+            //         keyClick('key.keyboard.left.shift', 1)
+            //         Client.waitTick(1)
             //     }
             // }
             keyClick('key.mouse.right')
@@ -432,7 +459,7 @@ while (isToggle()) {
     } else {
         danceCache = null
     }
-    Client.waitTick()
+    Time.sleep(5)
 }
 
 // if (mcTickListener)
