@@ -22,7 +22,7 @@ const setToggle = (value) => {
 setToggle(!isToggle())
 
 // 参数区
-const isCustomMode = false
+const isCustomMode = true
 const debug = false
 
 // 星露谷钓鱼：core\src\main\resources\contents\minigame\default.yml
