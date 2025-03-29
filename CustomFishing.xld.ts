@@ -342,7 +342,8 @@ const getCustomFishInfos = () => {
             // `时间: ${res.time.toLocaleString()}`,
             `主手: ${res.mainHand.getName().getString()}(${res.mainHand.getDurability()}/${res.mainHand.getMaxDurability()})`,
             `钓钩: ${res.hook}`,
-            `上钩: ${res.entity}`,
+            `咬钩: ${res.hasCaughtFish}`,
+            `钩中: ${res.entity}`,
             `垂钓: ${res.isFishing ? '是' : '否'}`,
             // `TITLE: ${res.TITLE}`,
             // `SUBTITLE: ${res.SUBTITLE}`,
@@ -427,7 +428,7 @@ if (isCustomMode) {
         ...{
             // 雪玲殿
             b008: {
-                "chars": ["\ub015"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar12.png",
+                "chars": ["\ub015"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar7.png",
                 "rate": [
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -436,18 +437,28 @@ if (isCustomMode) {
                 ],
                 "width-per-section": 4, "pointer-offset": -183, "pointer-width": 5,
             },
+            b00a: {
+                "chars": ["\ub016"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar9.png",
+                "rate": [
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ],
+                "width-per-section": 4, "pointer-offset": -183, "pointer-width": 5,
+            },
             b015: {
-                "chars": ["\ub015"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar12.png",
+                "chars": ["\ub015"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar10.png",
                 "rate": [
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+                    0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 ],
                 "width-per-section": 4, "pointer-offset": -183, "pointer-width": 5,
             },
             b016: {
-                "chars": ["\ub016"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar13.png",
+                "chars": ["\ub016"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar11.png",
                 "rate": [
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -457,11 +468,11 @@ if (isCustomMode) {
                 "width-per-section": 4, "pointer-offset": -183, "pointer-width": 5,
             },
             b017: {
-                "chars": ["\ub016"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar13.png",
+                "chars": ["\ub016"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar12.png",
                 "rate": [
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-                    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 ],
                 "width-per-section": 4, "pointer-offset": -183, "pointer-width": 5,
@@ -476,16 +487,6 @@ if (isCustomMode) {
                 ],
                 "width-per-section": 4, "pointer-offset": -183, "pointer-width": 5,
             },
-            b00a: {
-                "chars": ["\ub016"], "type": "bitmap", "height": 8, "ascent": 8, "file": "customfishing:font/bars/bar13.png",
-                "rate": [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                ],
-                "width-per-section": 4, "pointer-offset": -183, "pointer-width": 5,
-            }
         }
     }
 }
@@ -531,7 +532,7 @@ while (isToggle()) {
                     // let chance = game.ui.rate[Math.ceil(game.ui.index + 1 * Math.sign(game.ui.progress - predictProgress))]
                     flog(JSON.stringify(game.ui) + '\n')
                     if (chance == 1) {
-                        keyClick('key.mouse.right')
+                        keyClick('key.mouse.right', 1)
                         predictProgress = 0
                     } else {
                         predictProgress = game.ui.progress
@@ -539,23 +540,23 @@ while (isToggle()) {
                 }
             }
         } else if (game.type == 'HoldGame') {
-            if (game.ui) {
-                if (game.ui.pointerPosition < game.ui.judgementPosition) {
-                    keyClick('key.keyboard.left.shift', 2)
-                    Client.waitTick(1)
-                } else if (game.ui.pointerPosition >= game.ui.judgementPosition
-                    && game.ui.pointerPosition <= game.ui.judgementPosition + game.ui.judgementWidth) {
-                    keyClick('key.keyboard.left.shift', 1)
-                    Client.waitTick(1)
-                }
-            }
-            // keyClick('key.mouse.right')
+            // if (game.ui) {
+            //     if (game.ui.pointerPosition < game.ui.judgementPosition) {
+            //         keyClick('key.keyboard.left.shift', 2)
+            //         Client.waitTick(1)
+            //     } else if (game.ui.pointerPosition >= game.ui.judgementPosition
+            //         && game.ui.pointerPosition <= game.ui.judgementPosition + game.ui.judgementWidth) {
+            //         keyClick('key.keyboard.left.shift', 1)
+            //         Client.waitTick(1)
+            //     }
+            // }
+            keyClick('key.mouse.right')
         }
     } else {
         danceCache = null
         if (fishInfos.attrs.mainHand?.getItemId()?.includes('fishing_rod')) {
             Client.waitTick(8)
-            keyClick('key.mouse.right')
+            keyClick('key.mouse.right', 2)
             Client.waitTick(20)
         }
     }
