@@ -3,11 +3,22 @@
 // 依赖模组: 宏(jsmacros)、映射反混淆(StackDeobfuscator)
 // 创建时间: 2025-03-30
 // 修改时间: 2025-03-30
-// 当前版本: v1.0
+// 当前版本: v1.1
+// 更新内容: v1.1 使用yarn名称获取类
 // 更新内容: v1.0 初始化脚本
 
 const DeobfReflect = {
     CacheMappings: Java.type('dev.booky.stackdeobf.StackDeobfMod').getMappings(),
+    getClassByYarn: function (name) {
+        let mapping = this.CacheMappings
+        let field = Reflection.getDeclaredField(Reflection.getClass(Reflection.getClassName(mapping)), 'classes')
+        field.setAccessible(true)
+        let classes = field.get(mapping)
+        for (let k of classes.keySet()) {
+            if (name.replaceAll(/\//g, '.') == classes.get(k))
+                return this.remapObject(Reflection.getClass(`net.minecraft.class_${k}`))
+        }
+    },
     remapString: function (value) { return this.CacheMappings.remapString(value) },
     find: function (arr, match) {
         if (arr == null)
@@ -39,9 +50,9 @@ const DeobfReflect = {
     findMethod: function (obj, match) {
         return this.find(this.getMethods(obj), match)
     },
-    
+
     remapObject: function (obj) {
-        if (typeof obj != 'object')
+        if (!(typeof obj == 'object' || typeof obj == 'function'))
             return obj
         let clsName = Reflection.getClassName(obj)
         if (!/class_(\d+)/.test(clsName))
@@ -58,7 +69,12 @@ const DeobfReflect = {
 
         fields.forEach(v => {
             v.setAccessible(true)
-            let val = v.get(obj)
+            let val
+            try {
+                val = v.get(obj)
+            } catch {
+                val = null
+            }
             res.Fields[this.remapString(v.getName())] = val
         })
 
@@ -85,5 +101,10 @@ const DeobfReflect = {
 DeobfReflect.load()
 
 // 样例
-let mc = Client.getMinecraft()
-Chat.log(mc.remap().Methods.getResourceManager().Methods.streamResourcePacks())
+Chat.log(DeobfReflect.getClassByYarn('net/minecraft/client/MinecraftClient')
+    .Methods.getModStatus())
+Chat.log(DeobfReflect.getClassByYarn('net.minecraft.client.MinecraftClient')
+    .Methods.getModStatus())
+Chat.log(Client.getMinecraft().remap()
+    .Methods.getResourceManager()
+    .Methods.streamResourcePacks().toArray())
