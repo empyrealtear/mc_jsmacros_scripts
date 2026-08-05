@@ -5,7 +5,8 @@
 ## 脚本清单
 
 - JEI/REI聚焦物品信息获取: [EnoughItemsAPI.js](./EnoughItemsAPI.js)
-- AE2操作终端库存: [AE2Utils.js](./AE2Utils.js)
+- AE2应用能源2操作终端库存: [AE2Utils.js](./AE2Utils.js)
+- RS精致存储操作终端库存: [RSUtils.js](./RSUtils.js)
 - Baritone路径规划渲染: [BaritoneRender.js](./BaritoneRender.js)
 - 潮汐自动钓鱼: [TideFishMinigame.ts](./TideFishMinigame.ts)
 - 星露谷插件自动钓鱼: [CustomFishing.ts](./CustomFishing.ts)、[ResourceParse_CustomFishing.ts](./ResourceParse_CustomFishing.ts)
