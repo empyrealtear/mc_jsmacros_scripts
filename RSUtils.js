@@ -86,7 +86,6 @@ class RSUtils {
     // static GridItemInventoryScrollMessage = Java.type('com.refinedmods.refinedstorage.network.grid.GridItemInventoryScrollMessage')
     /** @type {net.minecraft.world.item.ItemStack} */
     static ItemStack = Java.type('net.minecraft.world.item.ItemStack')
-    static BuiltInRegistries = Java.type('net.minecraft.core.registries.BuiltInRegistries')
 
     constructor() {
         /** 终端容器实例 @type {RSUtils.GridScreen} */
