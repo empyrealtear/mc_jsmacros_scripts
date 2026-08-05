@@ -6,14 +6,13 @@
 // 更新内容: v1.0 初始化脚本
 
 const scriptName = 'EnoughItemsAPI.ToggleScript'
-const mclog = (msg, preixColor = 0x5, msgColor = 0x7) => {
+const mclog = (msg, prefixColor = 0x5, msgColor = 0x7) => {
     Chat.log(Chat.createTextBuilder()
-        .append("[").withColor(preixColor)
-        .append(scriptName).withColor(preixColor)
-        .append("]").withColor(preixColor)
+        .append("[").withColor(prefixColor)
+        .append(scriptName).withColor(prefixColor)
+        .append("]").withColor(prefixColor)
         .append(" " + msg).withColor(msgColor).build())
 }
-// 持久化全局开关读写
 const isToggle = () => GlobalVars.getBoolean(scriptName)
 const setToggle = (value) => {
     GlobalVars.putBoolean(scriptName, value)
