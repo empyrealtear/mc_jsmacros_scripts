@@ -6,11 +6,11 @@
 // 更新内容: v1.0 初始化脚本
 
 const scriptName = 'RSUtils.ToggleScript'
-const mclog = (msg, preixColor = 0x5, msgColor = 0x7) => {
+const mclog = (msg, prefixColor = 0x5, msgColor = 0x7) => {
     Chat.log(Chat.createTextBuilder()
-        .append("[").withColor(preixColor)
-        .append(scriptName).withColor(preixColor)
-        .append("]").withColor(preixColor)
+        .append("[").withColor(prefixColor)
+        .append(scriptName).withColor(prefixColor)
+        .append("]").withColor(prefixColor)
         .append(" " + msg).withColor(msgColor).build())
 }
 const isToggle = () => GlobalVars.getBoolean(scriptName)
@@ -114,7 +114,7 @@ class RSUtils {
      * @param {int} clickedButton 0 左键 / 1 右键
      * @returns {bool} 点击结果
      */
-    mouseClicked(mouseX, mouseY, clickedButton) { return this.mouseClicked(mouseX, mouseY, clickedButton) }
+    mouseClicked(mouseX, mouseY, clickedButton) { return this.screen.mouseClicked(mouseX, mouseY, clickedButton) }
     /** 滚动鼠标滚轮
      * @param {double} x 
      * @param {double} y 
@@ -122,7 +122,7 @@ class RSUtils {
      * @param {double} delta 
      * @returns {bool} 滚动结果
      */
-    mouseScrolled(x, y, z, delta) { return this.mouseScrolled(x, y, z, delta) }
+    mouseScrolled(x, y, z, delta) { return this.screen.mouseScrolled(x, y, z, delta) }
     /** 按照id搜索物品
      * @param {string} itemid 物品id
      * @returns {GridStack}
