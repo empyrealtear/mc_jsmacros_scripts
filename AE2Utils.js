@@ -6,11 +6,11 @@
 // 更新内容: v1.0 初始化脚本
 
 const scriptName = 'AE2Utils.ToggleScript'
-const mclog = (msg, preixColor = 0x5, msgColor = 0x7) => {
+const mclog = (msg, prefixColor = 0x5, msgColor = 0x7) => {
     Chat.log(Chat.createTextBuilder()
-        .append("[").withColor(preixColor)
-        .append(scriptName).withColor(preixColor)
-        .append("]").withColor(preixColor)
+        .append("[").withColor(prefixColor)
+        .append(scriptName).withColor(prefixColor)
+        .append("]").withColor(prefixColor)
         .append(" " + msg).withColor(msgColor).build())
 }
 const isToggle = () => GlobalVars.getBoolean(scriptName)
@@ -64,9 +64,9 @@ class GridInventoryEntry {
 
 class AE2Utils {
     /** @type {appeng.client.gui.me.common.MEStorageScree} */
-    static MEStorageScreen = Java.type("appeng.client.gui.me.common.MEStorageScreen")
+    static MEStorageScreen = Java.type('appeng.client.gui.me.common.MEStorageScreen')
     /** @type {appeng.helpers.InventoryAction} */
-    static InventoryAction = Java.type("appeng.helpers.InventoryAction")
+    static InventoryAction = Java.type('appeng.helpers.InventoryAction')
     static Action = {
         /** 原版通用 - 中键点击（仅限创造）：复制一组物品 */
         CREATIVE_DUPLICATE: AE2Utils.InventoryAction.CREATIVE_DUPLICATE,
@@ -157,9 +157,9 @@ class AE2Utils {
      */
     findbyId(itemid) {
         for (let entry of this.getAllEntries()) {
-            let grid_entry = new GridInventoryEntry(entry)
-            if (grid_entry.getId() == itemid)
-                return grid_entry
+            let stack = new GridInventoryEntry(entry)
+            if (itemid instanceof RegExp ? itemid.test(stack.getId()) : stack.getId() == itemid)
+                return stack
         }
         return null
     }
